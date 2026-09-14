@@ -1,0 +1,294 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  APPLICANT
+  SUBJECT_OFFICER
+  SSSB_ADMIN
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CORRECTION_REQUESTED
+  SUBJECT_OFFICER_APPROVED
+  REJECTED
+  SSSB_PROCESSING
+  COMPLETED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id                    String               @id @default(uuid()) @db.Char(36)
+  email                 String               @unique @db.VarChar(191)
+  passwordHash          String               @db.VarChar(255)
+  role                  Role                 @default(APPLICANT)
+  isActive              Boolean              @default(true)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  applicantProfile      ApplicantProfile?
+  reviews               OfficerReview[]
+  historyActions        ApplicationHistory[] @relation("HistoryActor")
+  passwordResetTokens   PasswordResetToken[]
+  sssbProcessingRecords SssbProcessing[]
+
+  @@index([role, isActive])
+  @@map("users")
+}
+
+model ApplicantProfile {
+  id                    String        @id @default(uuid()) @db.Char(36)
+  userId                String        @unique @db.Char(36)
+  fullName              String        @db.VarChar(255)
+  nameWithInitials      String?       @db.VarChar(255)
+  nic                   String        @unique @db.VarChar(20)
+  dateOfBirth           DateTime      @db.Date
+  gender                String?       @db.VarChar(30)
+  civilStatus           String?       @db.VarChar(30)
+  phone                 String        @db.VarChar(30)
+  alternatePhone        String?       @db.VarChar(30)
+  permanentAddress      String        @db.Text
+  postalAddress         String?       @db.Text
+  district              String?       @db.VarChar(100)
+  divisionalSecretariat String?       @db.VarChar(191)
+  nationality           String        @default("Sri Lankan") @db.VarChar(100)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications          Application[]
+
+  @@index([fullName])
+  @@map("applicant_profiles")
+}
+
+model PensionScheme {
+  id                           String        @id @default(uuid()) @db.Char(36)
+  code                         String        @unique @db.VarChar(50)
+  name                         String        @db.VarChar(191)
+  description                  String?       @db.Text
+  totalContribution            Decimal?      @db.Decimal(12, 2)
+  sltdaContributionPercent     Decimal       @default(40.00) @db.Decimal(5, 2)
+  applicantContributionPercent Decimal       @default(60.00) @db.Decimal(5, 2)
+  isActive                     Boolean       @default(true)
+  isSample                     Boolean       @default(false)
+  createdAt                    DateTime      @default(now())
+  updatedAt                    DateTime      @updatedAt
+  applications                 Application[]
+
+  @@index([isActive])
+  @@map("pension_schemes")
+}
+
+model Application {
+  id                           String               @id @default(uuid()) @db.Char(36)
+  applicationNumber            String?              @unique @db.VarChar(40)
+  applicantProfileId           String               @db.Char(36)
+  status                       ApplicationStatus    @default(DRAFT)
+  tourismServiceYears          Int?
+  tourismServiceMonths         Int?
+  currentlyRegisteredWithSltda Boolean?
+  sltdaRegistrationNumber      String?              @db.VarChar(100)
+  registrationCategory         String?              @db.VarChar(100)
+  otherRegistrationCategory    String?              @db.VarChar(191)
+  entitledEpf                  Boolean              @default(false)
+  entitledEtf                  Boolean              @default(false)
+  entitledGovernmentPension    Boolean              @default(false)
+  entitledOtherSocialSecurity  Boolean              @default(false)
+  otherSocialSecurityDetails   String?              @db.VarChar(255)
+  pensionSchemeId              String?              @db.Char(36)
+  selectedSchemePeriodYears    Int?
+  monthlyContributionAmount    Decimal?             @db.Decimal(12, 2)
+  contributionStartMonth       DateTime?            @db.Date
+  declarationAccepted          Boolean              @default(false)
+  declarationAcceptedAt        DateTime?
+  applicantSignatureName       String?              @db.VarChar(255)
+  declarationDate              DateTime?            @db.Date
+  additionalFormData           Json?
+  submittedAt                  DateTime?
+  approvedAt                   DateTime?
+  completedAt                  DateTime?
+  version                      Int                  @default(1)
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+  applicantProfile             ApplicantProfile     @relation(fields: [applicantProfileId], references: [id], onDelete: Restrict)
+  pensionScheme                PensionScheme?       @relation(fields: [pensionSchemeId], references: [id], onDelete: Restrict)
+  familyMembers                FamilyMember[]
+  beneficiaries                Beneficiary[]
+  documents                    Document[]
+  officerReviews               OfficerReview[]
+  sssbProcessing               SssbProcessing?
+  history                      ApplicationHistory[]
+  emailNotifications           EmailNotification[]
+
+  @@index([applicantProfileId, status])
+  @@index([status, submittedAt])
+  @@map("applications")
+}
+
+model FamilyMember {
+  id            String      @id @default(uuid()) @db.Char(36)
+  applicationId String      @db.Char(36)
+  fullName      String      @db.VarChar(255)
+  relationship  String      @db.VarChar(100)
+  nic           String?     @db.VarChar(20)
+  dateOfBirth   DateTime?   @db.Date
+  occupation    String?     @db.VarChar(191)
+  maritalStatus String?     @db.VarChar(50)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("family_members")
+}
+
+model Beneficiary {
+  id                String      @id @default(uuid()) @db.Char(36)
+  applicationId     String      @db.Char(36)
+  fullName          String      @db.VarChar(255)
+  relationship      String      @db.VarChar(100)
+  nic               String?     @db.VarChar(20)
+  dateOfBirth       DateTime?   @db.Date
+  address           String?     @db.Text
+  phone             String?     @db.VarChar(30)
+  allocationPercent Decimal?    @db.Decimal(5, 2)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  application       Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("beneficiaries")
+}
+
+model OfficerReview {
+  id                             String      @id @default(uuid()) @db.Char(36)
+  applicationId                  String      @db.Char(36)
+  officerId                      String      @db.Char(36)
+  eligible                       Boolean?
+  eligibilityYears               Decimal?    @db.Decimal(5, 2)
+  eligibilityOverrideReason      String?     @db.Text
+  recommendation                 String?     @db.Text
+  decisionReason                 String?     @db.Text
+  approvedTotalContribution      Decimal?    @db.Decimal(12, 2)
+  approvedSltdaContribution      Decimal?    @db.Decimal(12, 2)
+  approvedApplicantContribution  Decimal?    @db.Decimal(12, 2)
+  decision                       String?     @db.VarChar(50)
+  paymentStartMonth              DateTime?   @db.Date
+  paymentMonthCount              Int?
+  paymentEndMonth                DateTime?   @db.Date
+  pensionStartMonth              DateTime?   @db.Date
+  recommendingOfficerName        String?     @db.VarChar(255)
+  recommendingOfficerDesignation String?     @db.VarChar(191)
+  approvedOfficerSignatureName   String?     @db.VarChar(255)
+  approvedOfficerDesignation     String?     @db.VarChar(191)
+  recommendationDate             DateTime?   @db.Date
+  createdAt                      DateTime    @default(now())
+  updatedAt                      DateTime    @updatedAt
+  application                    Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  officer                        User        @relation(fields: [officerId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@index([officerId])
+  @@map("officer_reviews")
+}
+
+model SssbProcessing {
+  id                   String      @id @default(uuid()) @db.Char(36)
+  applicationId        String      @unique @db.Char(36)
+  membershipId         String      @unique @db.VarChar(100)
+  certificateNumber    String      @unique @db.VarChar(100)
+  accountOpeningDate   DateTime    @db.Date
+  schemeRegistered     Boolean
+  officeRemarks        String?     @db.Text
+  officerSignatureName String      @db.VarChar(255)
+  processingDate       DateTime    @db.Date
+  processedById        String      @db.Char(36)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  application          Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  processedBy          User        @relation(fields: [processedById], references: [id], onDelete: Restrict)
+
+  @@index([processedById])
+  @@map("sssb_processing")
+}
+
+model Document {
+  id            String      @id @default(uuid()) @db.Char(36)
+  applicationId String      @db.Char(36)
+  category      String      @db.VarChar(100)
+  originalName  String      @db.VarChar(255)
+  storedName    String      @unique @db.VarChar(255)
+  storagePath   String      @db.VarChar(500)
+  mimeType      String      @db.VarChar(100)
+  sizeBytes     Int
+  uploadedAt    DateTime    @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, category])
+  @@map("documents")
+}
+
+model ApplicationHistory {
+  id            String             @id @default(uuid()) @db.Char(36)
+  applicationId String             @db.Char(36)
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  action        String             @db.VarChar(100)
+  comment       String?            @db.Text
+  actorId       String?            @db.Char(36)
+  createdAt     DateTime           @default(now())
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  actor         User?              @relation("HistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt])
+  @@map("application_history")
+}
+
+model EmailNotification {
+  id            String       @id @default(uuid()) @db.Char(36)
+  applicationId String?      @db.Char(36)
+  recipient     String       @db.VarChar(191)
+  subject       String       @db.VarChar(255)
+  template      String       @db.VarChar(100)
+  status        EmailStatus  @default(PENDING)
+  errorMessage  String?      @db.Text
+  sentAt        DateTime?
+  createdAt     DateTime     @default(now())
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, status])
+  @@map("email_notifications")
+}
+
+model ApplicationSequence {
+  dateKey      String   @id @db.Char(8)
+  currentValue Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@map("application_sequences")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Char(36)
+  userId    String    @db.Char(36)
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}

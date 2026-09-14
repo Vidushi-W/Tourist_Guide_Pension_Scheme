@@ -1,0 +1,21 @@
+# Delivery checklist
+
+- [x] React/Vite client with Material UI, React Hook Form, Zod, and Axios
+- [x] Express/TypeScript API with controller/service/route/middleware separation
+- [x] Prisma configured for MySQL and normalized schema
+- [x] MySQL Workbench schema using `utf8mb4`
+- [x] Secure HTTP-only JWT cookie and bcrypt password hashing
+- [x] Centralized roles and backend role/ownership authorization
+- [x] Backend-enforced status transition policy and audit history
+- [x] Transactional submission, officer decision, and SSSB completion
+- [x] Concurrent-safe application number sequence
+- [x] Family members, beneficiaries, pension selection, declaration, and draft support
+- [x] File type/size restrictions and filesystem metadata model
+- [x] Contribution percentages configurable; approval snapshots use DECIMAL
+- [x] Five-year calculated eligibility guideline with officer override
+- [x] Nodemailer notifications with delivery-attempt logging after commit
+- [x] Seed users and disabled sample pension schemes
+- [x] Automated tests for authentication primitives, authorization policy, submission, approval, and transitions
+- [x] Reconcile Sections A–F, declaration, eligibility wording, categories, periods, recommendation, and office-use fields against the supplied Word form
+- [ ] Load official pension scheme options after Annexure 1 is supplied (it is referenced but absent from the Word form)
+- [ ] Run database-backed acceptance tests against the target MySQL environment
